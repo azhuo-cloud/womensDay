@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>你画我猜 - AI猜画游戏</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .game-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 30px;
+            max-width: 900px;
+            width: 100%;
+        }
+
+        .game-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .game-title {
+            font-size: 2.5em;
+            color: #333;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .game-area {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 30px;
+            margin-bottom: 20px;
+        }
+
+        .canvas-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 10px;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        #drawingCanvas {
+            background: white;
+            border-radius: 10px;
+            cursor: crosshair;
+            display: block;
+            width: 100%;
+            height: 400px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .control-label {
+            font-size: 0.9em;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .color-picker {
+            width: 50px;
+            height: 50px;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: transform 0.2s;
+        }
+
+        .color-picker:hover {
+            transform: scale(1.1);
+        }
+
+        .brush-size {
+            width: 120px;
+            height: 6px;
+            border-radius: 3px;
+            background: #ddd;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .brush-size::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+        }
+
+        .brush-preview {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #333;
+            transition: all 0.3s;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #333;
+            border: 2px solid #ddd;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .timer-section {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            color: white;
+        }
+
+        .timer-label {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        .timer-display {
+            font-size: 3em;
+            font-weight: bold;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .timer-display.warning {
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .ai-section {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            border-radius: 15px;
+            padding: 20px;
+            color: white;
+        }
+
+        .ai-title {
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .ai-status {
+            text-align: center;
+            padding: 15px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+        }
+
+        .ai-guess {
+            font-size: 1.2em;
+            text-align: center;
+            padding: 15px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 10px;
+            margin-top: 10px;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .word-display {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            color: white;
+        }
+
+        .word-label {
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        .current-word {
+            font-size: 2em;
+            font-weight: bold;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .game-over-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .modal-title {
+            font-size: 2em;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .modal-result {
+            font-size: 1.2em;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .game-area {
+                grid-template-columns: 1fr;
+            }
+            
+            .sidebar {
+                order: -1;
+            }
+            
+            #drawingCanvas {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <header class="game-header">
+            <h1 class="game-title">🎨 你画我猜</h1>
+            <p style="color: #666;">AI猜画游戏 - 画出你的创意！</p>
+        </header>
+
+        <div class="game-area">
+            <div class="canvas-section">
+                <div class="canvas-wrapper">
+                    <canvas id="drawingCanvas"></canvas>
+                </div>
+                
+                <div class="controls">
+                    <div class="control-group">
+                        <label class="control-label">画笔颜色</label>
+                        <input type="color" id="colorPicker" class="color-picker" value="#000000">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label class="control-label">画笔粗细</label>
+                        <input type="range" id="brushSize" class="brush-size" min="1" max="20" value="3">
+                        <div id="brushPreview" class="brush-preview"></div>
+                    </div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button id="startBtn" class="btn btn-primary">开始游戏</button>
+                    <button id="clearBtn" class="btn btn-secondary">清空画布</button>
+                    <button id="newWordBtn" class="btn btn-secondary">换一个词</button>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="word-display">
+                    <div class="word-label">要画的词</div>
+                    <div class="current-word" id="currentWord">点击开始游戏</div>
+                </div>
+
+                <div class="timer-section">
+                    <div class="timer-label">倒计时</div>
+                    <div class="timer-display" id="timerDisplay">20</div>
+                </div>
+
+                <div class="ai-section">
+                    <div class="ai-title">🤖 AI 猜画</div>
+                    <div class="ai-status" id="aiStatus">等待开始...</div>
+                    <div class="ai-guess" id="aiGuess"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="game-over-modal" id="gameOverModal">
+        <div class="modal-content">
+            <h2 class="modal-title">游戏结束！</h2>
+            <div class="modal-result" id="modalResult"></div>
+            <button id="playAgainBtn" class="btn btn-primary">再玩一次</button>
+        </div>
+    </div>
+
+    <script>
+        // 访问统计类
+        class AccessTracker {
+            constructor() {
+                this.sessionId = this.generateSessionId();
+                this.apiBase = window.location.origin;
+                this.trackVisit();
+            }
+
+            generateSessionId() {
+                return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            }
+
+            async trackVisit() {
+                try {
+                    await this.sendLog('visit', {
+                        url: window.location.href,
+                        referrer: document.referrer,
+                        screen: `${screen.width}x${screen.height}`,
+                        language: navigator.language
+                    });
+                } catch (error) {
+                    console.log('访问统计记录失败:', error);
+                }
+            }
+
+            async trackGameStart(word) {
+                try {
+                    await this.sendLog('game_start', {
+                        word: word,
+                        timestamp: new Date().toISOString()
+                    });
+                } catch (error) {
+                    console.log('游戏开始统计失败:', error);
+                }
+            }
+
+            async trackGameEnd(result, timeSpent) {
+                try {
+                    await this.sendLog('game_end', {
+                        result: result,
+                        timeSpent: timeSpent,
+                        timestamp: new Date().toISOString()
+                    });
+                } catch (error) {
+                    console.log('游戏结束统计失败:', error);
+                }
+            }
+
+            async sendLog(action, data) {
+                const response = await fetch(`${this.apiBase}/api/log`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: action,
+                        data: data,
+                        sessionId: this.sessionId
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('统计请求失败');
+                }
+                
+                return response.json();
+            }
+        }
+
+        class DrawingGame {
+            constructor() {
+                this.canvas = document.getElementById('drawingCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.isDrawing = false;
+                this.isGameActive = false;
+                this.timeLeft = 20;
+                this.timer = null;
+                this.gameStartTime = null;
+                this.tracker = new AccessTracker();
+                
+                this.words = [
+                    '太阳', '月亮', '星星', '苹果', '香蕉', '汽车', '飞机', '房子', '树木', '花朵',
+                    '小猫', '小狗', '鱼', '鸟', '蝴蝶', '山', '河流', '云朵', '雨伞', '书本',
+                    '眼镜', '帽子', '鞋子', '手表', '手机', '电脑', '椅子', '桌子', '床', '门',
+                    '窗户', '自行车', '火车', '船', '桥', '道路', '红绿灯', '公园', '学校', '医院',
+                    '蛋糕', '冰淇淋', '汉堡', '披萨', '咖啡', '茶杯', '篮球', '足球', '网球', '游泳'
+                ];
+                
+                this.currentWord = '';
+                this.setupCanvas();
+                this.setupEventListeners();
+                this.updateBrushPreview();
+            }
+
+            setupCanvas() {
+                // 设置canvas实际尺寸
+                const rect = this.canvas.getBoundingClientRect();
+                this.canvas.width = rect.width;
+                this.canvas.height = rect.height;
+                
+                // 设置默认样式
+                this.ctx.lineCap = 'round';
+                this.ctx.lineJoin = 'round';
+                this.ctx.strokeStyle = '#000000';
+                this.ctx.lineWidth = 3;
+            }
+
+            setupEventListeners() {
+                // 画布事件
+                this.canvas.addEventListener('mousedown', this.startDrawing.bind(this));
+                this.canvas.addEventListener('mousemove', this.draw.bind(this));
+                this.canvas.addEventListener('mouseup', this.stopDrawing.bind(this));
+                this.canvas.addEventListener('mouseout', this.stopDrawing.bind(this));
+                
+                // 触摸事件支持
+                this.canvas.addEventListener('touchstart', this.handleTouch.bind(this));
+                this.canvas.addEventListener('touchmove', this.handleTouch.bind(this));
+                this.canvas.addEventListener('touchend', this.stopDrawing.bind(this));
+                
+                // 控制按钮事件
+                document.getElementById('startBtn').addEventListener('click', this.startGame.bind(this));
+                document.getElementById('clearBtn').addEventListener('click', this.clearCanvas.bind(this));
+                document.getElementById('newWordBtn').addEventListener('click', this.getNewWord.bind(this));
+                document.getElementById('playAgainBtn').addEventListener('click', this.resetGame.bind(this));
+                
+                // 画笔控制事件
+                document.getElementById('colorPicker').addEventListener('change', this.updateBrushColor.bind(this));
+                document.getElementById('brushSize').addEventListener('input', this.updateBrushSize.bind(this));
+                
+                // 窗口大小改变时重新设置canvas
+                window.addEventListener('resize', this.setupCanvas.bind(this));
+            }
+
+            handleTouch(e) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const mouseEvent = new MouseEvent(e.type === 'touchstart' ? 'mousedown' : 'mousemove', {
+                    clientX: touch.clientX,
+                    clientY: touch.clientY
+                });
+                this.canvas.dispatchEvent(mouseEvent);
+            }
+
+            startDrawing(e) {
+                if (!this.isGameActive) return;
+                
+                this.isDrawing = true;
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                this.ctx.beginPath();
+                this.ctx.moveTo(x, y);
+            }
+
+            draw(e) {
+                if (!this.isDrawing || !this.isGameActive) return;
+                
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                this.ctx.lineTo(x, y);
+                this.ctx.stroke();
+            }
+
+            stopDrawing() {
+                this.isDrawing = false;
+            }
+
+            updateBrushColor(e) {
+                this.ctx.strokeStyle = e.target.value;
+                this.updateBrushPreview();
+            }
+
+            updateBrushSize(e) {
+                this.ctx.lineWidth = e.target.value;
+                this.updateBrushPreview();
+            }
+
+            updateBrushPreview() {
+                const preview = document.getElementById('brushPreview');
+                const size = document.getElementById('brushSize').value;
+                const color = document.getElementById('colorPicker').value;
+                
+                preview.style.width = Math.min(30, size * 2) + 'px';
+                preview.style.height = Math.min(30, size * 2) + 'px';
+                preview.style.backgroundColor = color;
+            }
+
+            clearCanvas() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            }
+
+            getNewWord() {
+                const randomIndex = Math.floor(Math.random() * this.words.length);
+                this.currentWord = this.words[randomIndex];
+                document.getElementById('currentWord').textContent = this.currentWord;
+                this.clearCanvas();
+            }
+
+            startGame() {
+                this.getNewWord();
+                this.isGameActive = true;
+                this.timeLeft = 20;
+                this.gameStartTime = Date.now();
+                
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('aiStatus').textContent = 'AI正在思考...';
+                document.getElementById('aiGuess').textContent = '';
+                
+                // 记录游戏开始
+                this.tracker.trackGameStart(this.currentWord);
+                
+                this.startTimer();
+                this.simulateAIGuess();
+            }
+
+            startTimer() {
+                this.updateTimerDisplay();
+                
+                this.timer = setInterval(() => {
+                    this.timeLeft--;
+                    this.updateTimerDisplay();
+                    
+                    if (this.timeLeft <= 5) {
+                        document.getElementById('timerDisplay').classList.add('warning');
+                    }
+                    
+                    if (this.timeLeft <= 0) {
+                        this.endGame();
+                    }
+                }, 1000);
+            }
+
+            updateTimerDisplay() {
+                document.getElementById('timerDisplay').textContent = this.timeLeft;
+            }
+
+            simulateAIGuess() {
+                // 模拟AI猜画过程
+                const guessTimes = [5, 8, 12, 15, 18];
+                const guesses = [
+                    '让我想想...',
+                    '这是某种动物吗？',
+                    '好像是水果？',
+                    '我有点头绪了！',
+                    '我知道了！'
+                ];
+                
+                guessTimes.forEach((time, index) => {
+                    setTimeout(() => {
+                        if (this.isGameActive && index < guesses.length - 1) {
+                            document.getElementById('aiGuess').textContent = guesses[index];
+                        }
+                    }, (20 - time) * 1000);
+                });
+                
+                // 最终猜测
+                setTimeout(() => {
+                    if (this.isGameActive) {
+                        const isCorrect = Math.random() > 0.3; // 70%概率猜对
+                        if (isCorrect) {
+                            document.getElementById('aiGuess').textContent = `🎉 ${this.currentWord}！`;
+                            document.getElementById('aiStatus').textContent = 'AI猜对了！';
+                            setTimeout(() => this.endGame(true), 1500);
+                        } else {
+                            const wrongGuess = this.words[Math.floor(Math.random() * this.words.length)];
+                            document.getElementById('aiGuess').textContent = `是${wrongGuess}吗？`;
+                            document.getElementById('aiStatus').textContent = 'AI继续思考...';
+                        }
+                    }
+                }, 15000);
+            }
+
+            endGame(aiWon = false) {
+                this.isGameActive = false;
+                clearInterval(this.timer);
+                
+                const timeSpent = this.gameStartTime ? (Date.now() - this.gameStartTime) / 1000 : 0;
+                const result = aiWon ? 'ai_won' : 'timeout';
+                
+                // 记录游戏结束
+                this.tracker.trackGameEnd(result, timeSpent);
+                
+                document.getElementById('timerDisplay').classList.remove('warning');
+                document.getElementById('startBtn').disabled = false;
+                
+                if (aiWon) {
+                    document.getElementById('aiStatus').textContent = '🎉 AI猜对了！';
+                    this.showGameOverModal(true);
+                } else {
+                    document.getElementById('aiStatus').textContent = '⏰ 时间到！';
+                    document.getElementById('aiGuess').textContent = `答案是：${this.currentWord}`;
+                    this.showGameOverModal(false);
+                }
+            }
+
+            showGameOverModal(aiWon) {
+                const modal = document.getElementById('gameOverModal');
+                const result = document.getElementById('modalResult');
+                
+                if (aiWon) {
+                    result.innerHTML = `🎉 太棒了！AI成功猜出了<br><strong>${this.currentWord}</strong>`;
+                } else {
+                    result.innerHTML = `⏰ 时间到了！<br>要画的是 <strong>${this.currentWord}</strong>`;
+                }
+                
+                modal.style.display = 'flex';
+            }
+
+            resetGame() {
+                document.getElementById('gameOverModal').style.display = 'none';
+                document.getElementById('currentWord').textContent = '点击开始游戏';
+                document.getElementById('aiStatus').textContent = '等待开始...';
+                document.getElementById('aiGuess').textContent = '';
+                document.getElementById('timerDisplay').textContent = '20';
+                this.clearCanvas();
+                this.timeLeft = 20;
+                this.isGameActive = false;
+            }
+        }
+
+        // 初始化游戏
+        document.addEventListener('DOMContentLoaded', () => {
+            new DrawingGame();
+        });
+    </script>
+</body>
+</html>
